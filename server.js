@@ -1,20 +1,28 @@
-require('dotenv').config(); // 1. Load environment variables
+require('dotenv').config();
 const express = require('express');
+const cors = require('cors'); 
 const connectDB = require('./config/db');
+const influencerRoutes = require('./routes/influencerRoutes.js');
 
+// 1. Initialize the app
 const app = express();
 
+// 2. Connect to Database
 connectDB();
 
-// Middleware to parse JSON
-app.use(express.json());
+// 3. Middleware
+app.use(cors()); 
+app.use(express.json()); 
 
-const PORT = process.env.PORT || 5000;
+// 4. Routes
+app.use('/api/influencers', influencerRoutes);
 
 app.get('/', (req, res) => {
     res.send('Byte Influencer API is running...');
 });
 
+// 5. Start Server
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Server running${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
