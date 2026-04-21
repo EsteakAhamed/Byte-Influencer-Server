@@ -3,42 +3,39 @@ const mongoose = require('mongoose');
 const InfluencerSchema = new mongoose.Schema({
     name: {
         type: String,
-        required: [true, 'Please add a name'],
+        required: true,
         trim: true
     },
     handle: {
         type: String,
-        required: [true, 'Please add a social handle'],
-        unique: true 
+        required: true,
+        unique: true,
+        index: true
     },
     platforms: {
         type: [String],
-        required: true,
-        enum: ['YouTube', 'TikTok', 'Instagram', 'Facebook']
+        enum: ['YouTube', 'TikTok', 'Instagram', 'Facebook'],
+        default: ['Instagram']
     },
     followers: {
-        type: String,
-        required: true
+        type: Number,
+        required: true,
+        default: 0
     },
     niche: {
         type: String,
-        required: true
+        default: "General"
     },
     status: {
         type: String,
         enum: ['Active', 'Inactive'],
         default: 'Active'
     },
-    // Data structure from RapidAPI
     metrics: {
-        avgLikes: { type: String, default: '0' },
-        avgViews: { type: String, default: '0' },
-        engagementRate: { type: String, default: '0%' }
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
+        avgLikes: { type: Number, default: 0 },
+        avgViews: { type: Number, default: 0 },
+        engagementRate: { type: Number, default: 0 }
     }
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model('Influencer', InfluencerSchema);

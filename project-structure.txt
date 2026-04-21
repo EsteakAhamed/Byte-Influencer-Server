@@ -1,0 +1,19 @@
+﻿Project Structure
+=================
+Generated: 2026-04-19 11:15:22
+
+.
+|-- [config/]
+|   -- db.js
+|-- [models/]
+|   -- influencer.js
+|-- [routes/]
+|   -- influencerRoutes.js
+|-- .env
+|-- .gitignore
+|-- package.json
+|-- package-lock.json
+|-- project-structure.txt
+|-- README.md
+|-- server.js
+-- show-structure.ps1

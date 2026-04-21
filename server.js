@@ -1,28 +1,43 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors'); 
+const cors = require('cors');
 const connectDB = require('./config/db');
 const influencerRoutes = require('./routes/influencerRoutes.js');
+const clientRoutes = require('./routes/clientRoutes.js');
 
-// 1. Initialize the app
 const app = express();
 
-// 2. Connect to Database
+// env validation
+if (!process.env.RAPIDAPI_KEY) {
+    console.warn('Missing RAPIDAPI_KEY');
+}
+
+if (!process.env.YOUTUBE_API_KEY) {
+    console.warn('Missing YOUTUBE_API_KEY');
+}
+
+if (!process.env.FACEBOOK_API_KEY) {
+    console.warn('Missing FACEBOOK_API_KEY');
+}
+
+// DB
 connectDB();
 
-// 3. Middleware
-app.use(cors()); 
-app.use(express.json()); 
+// middleware
+app.use(cors());
+app.use(express.json());
 
-// 4. Routes
+// routes
 app.use('/api/influencers', influencerRoutes);
+app.use('/api/clients', clientRoutes);
 
 app.get('/', (req, res) => {
-    res.send('Byte Influencer API is running...');
+    res.send('API running');
 });
 
-// 5. Start Server
+// start
 const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
