@@ -5,7 +5,9 @@ const importController = require('../controllers/importController');
 
 // Core CRUD Routes
 router.get('/', influencerController.getAll);
+router.get('/:id/profile', influencerController.getProfile);
 router.delete('/:id', influencerController.remove);
+router.delete('/:id/platform/:platformName', influencerController.removePlatform);
 router.patch('/:id', influencerController.update);
 
 // Import Routes

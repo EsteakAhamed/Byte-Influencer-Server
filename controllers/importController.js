@@ -4,6 +4,52 @@ const youtubeService = require('../services/youtubeService');
 const facebookService = require('../services/facebookService');
 const tiktokService = require('../services/tiktokService');
 
+const normalizeHandle = (handle) => {
+    if (!handle) return '';
+    // Lowercase, trim, remove some special characters (keep a-z, 0-9, _, .)
+    return handle.toLowerCase().replace(/[^a-z0-9_.]/g, '').trim();
+};
+
+const handleImport = async (influencerData, platformName) => {
+    const normalizedHandle = normalizeHandle(influencerData.handle);
+    const searchName = influencerData.name ? new RegExp(`^${influencerData.name}$`, 'i') : null;
+
+    let existing = await Influencer.findOne({ handle: normalizedHandle });
+
+    if (!existing && searchName) {
+        existing = await Influencer.findOne({ name: searchName });
+    }
+
+    const newPlatformData = {
+        platformName,
+        followers: influencerData.followers || 0,
+        niche: influencerData.niche || 'General',
+        status: influencerData.status || 'Active',
+        metrics: influencerData.metrics || { avgLikes: 0, avgViews: 0, engagementRate: 0 }
+    };
+
+    if (existing) {
+        const platformIndex = existing.platforms.findIndex(p => p.platformName === platformName);
+        if (platformIndex > -1) {
+            existing.platforms[platformIndex] = newPlatformData;
+            existing.markModified('platforms');
+        } else {
+            existing.platforms.push(newPlatformData);
+        }
+        const saved = await existing.save();
+        return { status: 200, message: "Influencer updated", influencer: saved };
+    }
+
+    const newInfluencer = new Influencer({
+        name: influencerData.name,
+        handle: normalizedHandle,
+        platforms: [newPlatformData]
+    });
+    
+    const saved = await newInfluencer.save();
+    return { status: 201, message: "Imported", influencer: saved };
+};
+
 exports.importInstagram = async (req, res) => {
     const { igUrl } = req.body;
 
@@ -15,13 +61,8 @@ exports.importInstagram = async (req, res) => {
         const rawData = await instagramService.fetchProfile(igUrl);
         const influencerData = instagramService.transformData(rawData);
 
-        const existing = await Influencer.findOne({ handle: influencerData.handle });
-        if (existing) {
-            return res.json({ message: "Influencer already exists", influencer: existing });
-        }
-
-        const saved = await new Influencer(influencerData).save();
-        res.status(201).json({ message: "Imported", influencer: saved });
+        const result = await handleImport(influencerData, 'Instagram');
+        res.status(result.status).json({ message: result.message, influencer: result.influencer });
 
     } catch (err) {
         console.error('Instagram import error:', err.response?.data || err.message);
@@ -38,14 +79,8 @@ exports.importYouTube = async (req, res) => {
 
     try {
         const influencerData = await youtubeService.fetchProfile(ytInput);
-
-        const existing = await Influencer.findOne({ handle: influencerData.handle });
-        if (existing) {
-            return res.json({ message: "Influencer already exists", influencer: existing });
-        }
-
-        const saved = await new Influencer(influencerData).save();
-        res.status(201).json({ message: "YouTube influencer imported", influencer: saved });
+        const result = await handleImport(influencerData, 'YouTube');
+        res.status(result.status).json({ message: result.message, influencer: result.influencer });
 
     } catch (err) {
         console.error('YouTube import error:', err.response?.data || err.message);
@@ -64,17 +99,11 @@ exports.importFacebook = async (req, res) => {
         const rawData = await facebookService.fetchProfile(fbUrl);
         const influencerData = facebookService.transformData(rawData);
 
-        const existing = await Influencer.findOne({ handle: influencerData.handle });
-        if (existing) {
-            return res.json({ message: "Influencer already exists", influencer: existing });
-        }
-
-        const saved = await new Influencer(influencerData).save();
-        res.status(201).json({ message: "Imported", influencer: saved });
+        const result = await handleImport(influencerData, 'Facebook');
+        res.status(result.status).json({ message: result.message, influencer: result.influencer });
 
     } catch (err) {
         console.error('Facebook import error:', err.response?.data || err.message);
-
         const { status, message } = facebookService.handleApiError(err);
         res.status(status).json({ message, error: err.message });
     }
@@ -91,13 +120,8 @@ exports.importTikTok = async (req, res) => {
         const rawData = await tiktokService.fetchProfile(url);
         const influencerData = tiktokService.transformData(rawData);
 
-        const existing = await Influencer.findOne({ handle: influencerData.handle });
-        if (existing) {
-            return res.json({ message: "Influencer already exists", influencer: existing });
-        }
-
-        const saved = await new Influencer(influencerData).save();
-        res.status(201).json({ message: "Imported", influencer: saved });
+        const result = await handleImport(influencerData, 'TikTok');
+        res.status(result.status).json({ message: result.message, influencer: result.influencer });
 
     } catch (err) {
         console.error('TikTok import error:', err.response?.data || err.message);
