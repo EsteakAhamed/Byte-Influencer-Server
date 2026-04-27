@@ -4,6 +4,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const influencerRoutes = require('./routes/influencerRoutes.js');
 const clientRoutes = require('./routes/clientRoutes.js');
+const authRoutes = require('./routes/authRoutes.js');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use(express.json());
 // routes
 app.use('/api/influencers', influencerRoutes);
 app.use('/api/clients', clientRoutes);
+app.use('/api/auth', authRoutes);
 
 app.get('/', (req, res) => {
     res.send('API running');
