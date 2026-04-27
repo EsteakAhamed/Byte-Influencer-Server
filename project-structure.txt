@@ -1,16 +1,32 @@
 ﻿Project Structure
 =================
-Generated: 2026-04-19 11:15:22
+Generated: 2026-04-27 15:47:06
 
 .
 |-- [config/]
 |   -- db.js
+|-- [controllers/]
+|   |-- clientController.js
+|   |-- importController.js
+|   -- influencerController.js
 |-- [models/]
+|   |-- client.js
 |   -- influencer.js
 |-- [routes/]
+|   |-- clientRoutes.js
 |   -- influencerRoutes.js
+|-- [scripts/]
+|   -- migrateInfluencers.js
+|-- [services/]
+|   |-- facebookService.js
+|   |-- instagramService.js
+|   |-- tiktokService.js
+|   -- youtubeService.js
+|-- [test/]
+|   -- import.test.js
 |-- .env
 |-- .gitignore
+|-- LICENSE
 |-- package.json
 |-- package-lock.json
 |-- project-structure.txt
