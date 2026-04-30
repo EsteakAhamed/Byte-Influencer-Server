@@ -77,6 +77,11 @@ const InfluencerSchema = new mongoose.Schema({
             },
             message: 'Duplicate platform entries are not allowed'
         }
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
     }
 }, { timestamps: true });
 

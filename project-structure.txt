@@ -1,18 +1,25 @@
 ﻿Project Structure
 =================
-Generated: 2026-04-27 15:47:06
+Generated: 2026-04-30 14:34:17
 
 .
 |-- [config/]
 |   -- db.js
 |-- [controllers/]
+|   |-- adminController.js
+|   |-- authController.js
 |   |-- clientController.js
 |   |-- importController.js
 |   -- influencerController.js
+|-- [middleware/]
+|   -- authMiddleware.js
 |-- [models/]
 |   |-- client.js
-|   -- influencer.js
+|   |-- influencer.js
+|   -- user.js
 |-- [routes/]
+|   |-- adminRoutes.js
+|   |-- authRoutes.js
 |   |-- clientRoutes.js
 |   -- influencerRoutes.js
 |-- [scripts/]

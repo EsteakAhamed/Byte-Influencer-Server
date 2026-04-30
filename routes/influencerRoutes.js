@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const influencerController = require('../controllers/influencerController');
 const importController = require('../controllers/importController');
+const { protect } = require('../middleware/authMiddleware');
+
+router.use(protect);
 
 // Core CRUD Routes
 router.get('/', influencerController.getAll);

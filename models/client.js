@@ -18,6 +18,11 @@ const clientSchema = new mongoose.Schema({
             endDate: { type: Date }
         },
         conversions: { type: Number, default: 0 }
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
     }
 }, { timestamps: true });
 

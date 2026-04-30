@@ -9,34 +9,52 @@ exports.register = async (req, res) => {
     try {
         const { username, email, password } = req.body;
 
+        if (!username || !email || !password) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+
+        const normalizedEmail = email.toLowerCase();
+
         // Check for duplicate email
-        const userExists = await User.findOne({ email });
+        const userExists = await User.findOne({ email: normalizedEmail });
         if (userExists) {
             return res.status(400).json({ message: "An account with this email already exists." });
         }
 
-        // Hash password
-        const salt = await bcrypt.genSalt(12);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        // Create user
+        // Create user (password will be hashed by pre-save hook)
         const user = await User.create({
             username,
-            email,
-            password: hashedPassword
+            email: normalizedEmail,
+            password
         });
+
+        // Generate JWT token
+        const token = jwt.sign(
+            { id: user._id, email: user.email, username: user.username, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
 
         res.status(201).json({
             message: "Registration successful",
+            token,
             user: {
                 id: user._id,
                 username: user.username,
-                email: user.email
+                email: user.email,
+                role: user.role
             }
         });
     } catch (error) {
         console.error(`Register Error: ${error.message}`);
-        res.status(500).json({ message: "Server error during registration" });
+        
+        // Handle Mongoose validation errors
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(err => err.message);
+            return res.status(400).json({ message: messages.join(', ') });
+        }
+
+        res.status(500).json({ message: "Server error during registration", error: error.message });
     }
 };
 
@@ -47,8 +65,14 @@ exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Find user by email
-        const user = await User.findOne({ email });
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
+        }
+
+        const normalizedEmail = email.toLowerCase();
+
+        // Find user by email and select password explicitly since it's select:false
+        const user = await User.findOne({ email: normalizedEmail }).select('+password');
         if (!user) {
             return res.status(401).json({ message: "Invalid email or password" });
         }
@@ -61,7 +85,7 @@ exports.login = async (req, res) => {
 
         // Sign JWT
         const token = jwt.sign(
-            { id: user._id, email: user.email, username: user.username },
+            { id: user._id, email: user.email, username: user.username, role: user.role },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -72,7 +96,8 @@ exports.login = async (req, res) => {
             user: {
                 id: user._id,
                 username: user.username,
-                email: user.email
+                email: user.email,
+                role: user.role
             }
         });
     } catch (error) {

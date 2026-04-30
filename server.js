@@ -5,6 +5,7 @@ const connectDB = require('./config/db');
 const influencerRoutes = require('./routes/influencerRoutes.js');
 const clientRoutes = require('./routes/clientRoutes.js');
 const authRoutes = require('./routes/authRoutes.js');
+const adminRoutes = require('./routes/adminRoutes.js');
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use(express.json());
 app.use('/api/influencers', influencerRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
     res.send('API running');

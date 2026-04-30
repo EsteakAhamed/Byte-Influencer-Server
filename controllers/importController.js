@@ -10,7 +10,7 @@ const normalizeHandle = (handle) => {
     return handle.toLowerCase().replace(/[^a-z0-9_.]/g, '').trim();
 };
 
-const handleImport = async (influencerData, platformName) => {
+const handleImport = async (influencerData, platformName, userId) => {
     const normalizedHandle = normalizeHandle(influencerData.handle);
     const searchName = influencerData.name ? new RegExp(`^${influencerData.name}$`, 'i') : null;
 
@@ -43,7 +43,8 @@ const handleImport = async (influencerData, platformName) => {
     const newInfluencer = new Influencer({
         name: influencerData.name,
         handle: normalizedHandle,
-        platforms: [newPlatformData]
+        platforms: [newPlatformData],
+        createdBy: userId
     });
     
     const saved = await newInfluencer.save();
@@ -61,7 +62,7 @@ exports.importInstagram = async (req, res) => {
         const rawData = await instagramService.fetchProfile(igUrl);
         const influencerData = instagramService.transformData(rawData);
 
-        const result = await handleImport(influencerData, 'Instagram');
+        const result = await handleImport(influencerData, 'Instagram', req.user.id);
         res.status(result.status).json({ message: result.message, influencer: result.influencer });
 
     } catch (err) {
@@ -79,7 +80,7 @@ exports.importYouTube = async (req, res) => {
 
     try {
         const influencerData = await youtubeService.fetchProfile(ytInput);
-        const result = await handleImport(influencerData, 'YouTube');
+        const result = await handleImport(influencerData, 'YouTube', req.user.id);
         res.status(result.status).json({ message: result.message, influencer: result.influencer });
 
     } catch (err) {
@@ -99,7 +100,7 @@ exports.importFacebook = async (req, res) => {
         const rawData = await facebookService.fetchProfile(fbUrl);
         const influencerData = facebookService.transformData(rawData);
 
-        const result = await handleImport(influencerData, 'Facebook');
+        const result = await handleImport(influencerData, 'Facebook', req.user.id);
         res.status(result.status).json({ message: result.message, influencer: result.influencer });
 
     } catch (err) {
@@ -120,7 +121,7 @@ exports.importTikTok = async (req, res) => {
         const rawData = await tiktokService.fetchProfile(url);
         const influencerData = tiktokService.transformData(rawData);
 
-        const result = await handleImport(influencerData, 'TikTok');
+        const result = await handleImport(influencerData, 'TikTok', req.user.id);
         res.status(result.status).json({ message: result.message, influencer: result.influencer });
 
     } catch (err) {
