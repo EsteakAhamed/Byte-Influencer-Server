@@ -6,10 +6,11 @@ const influencerRoutes = require('./routes/influencerRoutes.js');
 const clientRoutes = require('./routes/clientRoutes.js');
 const authRoutes = require('./routes/authRoutes.js');
 const adminRoutes = require('./routes/adminRoutes.js');
+const dashboardRoutes = require('./routes/dashboardRoutes.js');
 
 const app = express();
 
-// env validation
+// Warn about missing API keys — app still works but some features won't
 if (!process.env.RAPIDAPI_KEY) {
     console.warn('Missing RAPIDAPI_KEY');
 }
@@ -22,24 +23,25 @@ if (!process.env.FACEBOOK_API_KEY) {
     console.warn('Missing FACEBOOK_API_KEY');
 }
 
-// DB
+// Connect to MongoDB before starting server
 connectDB();
 
-// middleware
+// Enable CORS for frontend and parse JSON bodies
 app.use(cors());
 app.use(express.json());
 
-// routes
+// Mount route handlers at their respective paths
 app.use('/api/influencers', influencerRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.get('/', (req, res) => {
     res.send('API running');
 });
 
-// start
+// Start listening on port from env or default to 5000
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

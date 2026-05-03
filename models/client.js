@@ -8,6 +8,7 @@ const clientSchema = new mongoose.Schema({
         enum: ['Active', 'Inactive'], 
         default: 'Active' 
     },
+    // Campaign performance metrics — all optional with defaults
     stats: {
         budget: { type: Number, default: 0 },
         influencersCount: { type: Number, default: 0 },
@@ -19,6 +20,7 @@ const clientSchema = new mongoose.Schema({
         },
         conversions: { type: Number, default: 0 }
     },
+    // Same pattern as influencers — filter by who created it
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

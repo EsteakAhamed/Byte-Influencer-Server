@@ -2,9 +2,7 @@ const User = require('../models/user');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
+// Register new user with hashed password (auto-hashed by model)
 exports.register = async (req, res) => {
     try {
         const { username, email, password } = req.body;
@@ -13,22 +11,23 @@ exports.register = async (req, res) => {
             return res.status(400).json({ message: "All fields are required" });
         }
 
+        // Normalize email to prevent duplicate registrations with different cases
         const normalizedEmail = email.toLowerCase();
 
-        // Check for duplicate email
+        // Prevent duplicate registrations
         const userExists = await User.findOne({ email: normalizedEmail });
         if (userExists) {
             return res.status(400).json({ message: "An account with this email already exists." });
         }
 
-        // Create user (password will be hashed by pre-save hook)
+        // Password gets auto-hashed by the model's pre-save hook
         const user = await User.create({
             username,
             email: normalizedEmail,
             password
         });
 
-        // Generate JWT token
+        // 7-day token — balance between security and UX (don't make users re-login constantly)
         const token = jwt.sign(
             { id: user._id, email: user.email, username: user.username, role: user.role },
             process.env.JWT_SECRET,
@@ -48,7 +47,7 @@ exports.register = async (req, res) => {
     } catch (error) {
         console.error(`Register Error: ${error.message}`);
         
-        // Handle Mongoose validation errors
+        // Handle Mongoose validation errors — return cleaner messages than default
         if (error.name === 'ValidationError') {
             const messages = Object.values(error.errors).map(err => err.message);
             return res.status(400).json({ message: messages.join(', ') });
@@ -58,9 +57,7 @@ exports.register = async (req, res) => {
     }
 };
 
-// @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
+// Login and return JWT token for subsequent requests
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -71,19 +68,18 @@ exports.login = async (req, res) => {
 
         const normalizedEmail = email.toLowerCase();
 
-        // Find user by email and select password explicitly since it's select:false
+        // Need to explicitly select password because schema sets select: false
         const user = await User.findOne({ email: normalizedEmail }).select('+password');
         if (!user) {
             return res.status(401).json({ message: "Invalid email or password" });
         }
 
-        // Compare password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(401).json({ message: "Invalid email or password" });
         }
 
-        // Sign JWT
+        // Generate new token on each login
         const token = jwt.sign(
             { id: user._id, email: user.email, username: user.username, role: user.role },
             process.env.JWT_SECRET,
@@ -106,9 +102,7 @@ exports.login = async (req, res) => {
     }
 };
 
-// @desc    Get current user profile
-// @route   GET /api/auth/me
-// @access  Private
+// Get current user — used to restore session on page refresh
 exports.getProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('-password');
@@ -122,9 +116,7 @@ exports.getProfile = async (req, res) => {
     }
 };
 
-// @desc    Update user profile (username only)
-// @route   PATCH /api/auth/profile
-// @access  Private
+// Update profile — currently only username is editable
 exports.updateProfile = async (req, res) => {
     try {
         const { username } = req.body;
@@ -165,4 +157,57 @@ exports.deleteProfile = async (req, res) => {
         console.error(`Delete Profile Error: ${error.message}`);
         res.status(500).json({ message: "Server error deleting profile" });
     }
+};
+
+// Change password after verifying current one — prevents account takeovers
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({
+        message: 'Password must contain at least 1 letter, 1 number, and 1 special character'
+      });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        message: 'New password must be different from current password'
+      });
+    }
+
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const isPasswordCorrect = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ message: 'Current password is incorrect' });
+    }
+
+    // Set plaintext password — pre-save hook will hash it automatically
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      message: 'Password changed successfully',
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 };

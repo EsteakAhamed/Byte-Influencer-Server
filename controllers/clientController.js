@@ -2,7 +2,7 @@ const Client = require('../models/client');
 
 exports.getAll = async (req, res) => {
     try {
-        // Validate pagination params
+        // Enforce reasonable limits to prevent abuse
         const page = Math.max(1, parseInt(req.query.page) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
 
@@ -12,13 +12,13 @@ exports.getAll = async (req, res) => {
             });
         }
 
-        // Build query with ownership filter
+        // Regular users only see their own clients; admins see everything
         let query = {};
         if (req.user && req.user.role === 'user') {
             query.createdBy = req.user.id;
         }
 
-        // Get total count for pagination metadata
+        // Get count before applying pagination limits
         const totalCount = await Client.countDocuments(query);
         const totalPages = Math.ceil(totalCount / limit);
         const skip = (page - 1) * limit;
@@ -46,6 +46,7 @@ exports.getAll = async (req, res) => {
     }
 };
 
+// Create new client and assign to current user
 exports.create = async (req, res) => {
     const client = new Client({
         ...req.body,
@@ -64,6 +65,7 @@ exports.update = async (req, res) => {
         const client = await Client.findById(req.params.id);
         if (!client) return res.status(404).json({ message: 'Client not found' });
         
+        // Check ownership before allowing updates
         if (req.user.role === 'user' && client.createdBy.toString() !== req.user.id) {
             return res.status(403).json({ message: 'Not authorized to update this client' });
         }
@@ -84,6 +86,7 @@ exports.remove = async (req, res) => {
         const client = await Client.findById(req.params.id);
         if (!client) return res.status(404).json({ message: 'Client not found' });
 
+        // Check ownership before allowing deletion
         if (req.user.role === 'user' && client.createdBy.toString() !== req.user.id) {
             return res.status(403).json({ message: 'Not authorized to delete this client' });
         }

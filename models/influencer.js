@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Stats for each platform — embedded doc so we don't need separate collection
 const MetricsSchema = new mongoose.Schema({
     avgLikes: {
         type: Number,
@@ -18,6 +19,7 @@ const MetricsSchema = new mongoose.Schema({
     }
 }, { _id: false });
 
+// Each platform entry for an influencer — one influencer can have multiple platforms
 const PlatformSchema = new mongoose.Schema({
     platformName: {
         type: String,
@@ -61,7 +63,7 @@ const InfluencerSchema = new mongoose.Schema({
     handle: {
         type: String,
         required: [true, 'handle is required'],
-        unique: true,
+        unique: true, // Can't have two influencers with same handle
         index: true,
         lowercase: true,
         trim: true
@@ -71,13 +73,14 @@ const InfluencerSchema = new mongoose.Schema({
         default: [],
         validate: {
             validator: function (platforms) {
-                // Prevent duplicate platform entries
+                // Don't let someone add Instagram twice for same influencer
                 const names = platforms.map(p => p.platformName);
                 return names.length === new Set(names).size;
             },
             message: 'Duplicate platform entries are not allowed'
         }
     },
+    // Track who imported this so we can filter by owner
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

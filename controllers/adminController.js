@@ -2,6 +2,7 @@ const User = require('../models/user');
 const Influencer = require('../models/influencer');
 const Client = require('../models/client');
 
+// Get all users for admin panel — exclude passwords from response
 exports.getAllUsers = async (req, res) => {
     try {
         const users = await User.find().select('-password').sort({ createdAt: -1 });
@@ -11,6 +12,7 @@ exports.getAllUsers = async (req, res) => {
     }
 };
 
+// Update user profile — check email isn't taken by someone else
 exports.updateUser = async (req, res) => {
     try {
         const { username, email } = req.body;
@@ -18,6 +20,7 @@ exports.updateUser = async (req, res) => {
         const updateData = {};
         if (username) updateData.username = username;
         if (email) {
+            // Prevent email collision with other users
             const existing = await User.findOne({ email });
             if (existing && existing._id.toString() !== req.params.id) {
                 return res.status(400).json({ message: 'Email already in use' });
@@ -47,7 +50,7 @@ exports.deleteUser = async (req, res) => {
         const deleted = await User.findByIdAndDelete(req.params.id);
         if (!deleted) return res.status(404).json({ message: 'User not found' });
 
-        // Cascade delete
+        // Clean up all user data to prevent orphaned records
         await Influencer.deleteMany({ createdBy: req.params.id });
         await Client.deleteMany({ createdBy: req.params.id });
 
@@ -57,6 +60,7 @@ exports.deleteUser = async (req, res) => {
     }
 };
 
+// Promote or demote user — validate role is allowed
 exports.updateRole = async (req, res) => {
     try {
         const { role } = req.body;

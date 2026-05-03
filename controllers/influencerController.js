@@ -3,6 +3,7 @@ const Influencer = require('../models/influencer');
 
 const VALID_PLATFORMS = ['YouTube', 'TikTok', 'Instagram', 'Facebook'];
 
+// Aggregate stats across all platforms for an influencer
 const calculateTotals = (influencer) => {
     let totalFollowers = 0;
     let totalEngagement = 0;
@@ -64,7 +65,7 @@ const calculateTotals = (influencer) => {
 
 exports.getAll = async (req, res) => {
     try {
-        // Validate pagination params
+        // Enforce reasonable limits to prevent abuse
         const page = Math.max(1, parseInt(req.query.page) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
 
@@ -74,13 +75,13 @@ exports.getAll = async (req, res) => {
             });
         }
 
-        // Build query with ownership filter
+        // Regular users only see their own influencers; admins see everything
         let query = {};
         if (req.user && req.user.role === 'user') {
             query.createdBy = req.user.id;
         }
 
-        // Get total count for pagination metadata
+        // Get count before applying pagination limits
         const totalCount = await Influencer.countDocuments(query);
         const totalPages = Math.ceil(totalCount / limit);
         const skip = (page - 1) * limit;
@@ -115,10 +116,12 @@ exports.getProfile = async (req, res) => {
         const { id } = req.params;
         let influencer;
 
+        // Support both MongoDB ObjectId and handle lookup
         if (id.match(/^[0-9a-fA-F]{24}$/)) {
             influencer = await Influencer.findById(id);
         }
 
+        // Fallback to handle search if ID lookup fails
         if (!influencer) {
             influencer = await Influencer.findOne({ handle: id });
         }
@@ -139,10 +142,12 @@ exports.remove = async (req, res) => {
         const influencer = await Influencer.findById(req.params.id);
         if (!influencer) return res.status(404).json({ message: "Not found" });
 
+        // Check ownership before allowing deletion
         if (req.user.role === 'user' && influencer.createdBy.toString() !== req.user.id) {
             return res.status(403).json({ message: 'Not authorized to delete this influencer' });
         }
 
+        // Clean up all user data when account is deleted
         const deleted = await Influencer.findByIdAndDelete(req.params.id);
         res.json({ message: `${deleted.name}'s profile deleted`, id: req.params.id, deleted: true });
     } catch (err) {
