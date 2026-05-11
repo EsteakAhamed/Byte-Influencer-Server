@@ -1,9 +1,13 @@
 const mongoose = require('mongoose');
 const Influencer = require('../models/influencer');
+const User = require('../models/user');
+const Notification = require('../models/notification');
+const { buildReadQuery, requireEditPermission, requireDeletePermission } = require('../middleware/authorization');
 
 const VALID_PLATFORMS = ['YouTube', 'TikTok', 'Instagram', 'Facebook'];
 
-// Aggregate stats across all platforms for an influencer
+// Platform data is stored nested; we flatten it for the frontend to simplify component logic
+// This prevents UI components from having to calculate averages and aggregations
 const calculateTotals = (influencer) => {
     let totalFollowers = 0;
     let totalEngagement = 0;
@@ -59,15 +63,18 @@ const calculateTotals = (influencer) => {
             platformCount
         },
         createdAt: influencer.createdAt,
-        updatedAt: influencer.updatedAt
+        updatedAt: influencer.updatedAt,
+        createdBy: influencer.createdBy,
+        assignedTo: influencer.assignedTo
     };
 };
 
 exports.getAll = async (req, res) => {
     try {
-        // Enforce reasonable limits to prevent abuse
+        // Validate pagination to prevent DB overload from malicious requests
         const page = Math.max(1, parseInt(req.query.page) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+        const search = req.query.search?.trim();
 
         if (page < 1 || limit < 1 || limit > 100) {
             return res.status(400).json({ 
@@ -75,13 +82,21 @@ exports.getAll = async (req, res) => {
             });
         }
 
-        // Regular users only see their own influencers; admins see everything
-        let query = {};
-        if (req.user && req.user.role === 'user') {
-            query.createdBy = req.user.id;
+        let query = buildReadQuery();
+
+        // Case-insensitive regex search on name and handle
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            query = {
+                ...query,
+                $or: [
+                    { name: searchRegex },
+                    { handle: searchRegex }
+                ]
+            };
         }
 
-        // Get count before applying pagination limits
+        // Separate count query is needed for accurate pagination metadata
         const totalCount = await Influencer.countDocuments(query);
         const totalPages = Math.ceil(totalCount / limit);
         const skip = (page - 1) * limit;
@@ -139,15 +154,15 @@ exports.getProfile = async (req, res) => {
 // DELETE entire influencer profile
 exports.remove = async (req, res) => {
     try {
+        // Only admins can delete
+        const permissionError = requireDeletePermission(req.user);
+        if (permissionError) {
+            return res.status(permissionError.status).json({ message: permissionError.message });
+        }
+
         const influencer = await Influencer.findById(req.params.id);
         if (!influencer) return res.status(404).json({ message: "Not found" });
 
-        // Check ownership before allowing deletion
-        if (req.user.role === 'user' && influencer.createdBy.toString() !== req.user.id) {
-            return res.status(403).json({ message: 'Not authorized to delete this influencer' });
-        }
-
-        // Clean up all user data when account is deleted
         const deleted = await Influencer.findByIdAndDelete(req.params.id);
         res.json({ message: `${deleted.name}'s profile deleted`, id: req.params.id, deleted: true });
     } catch (err) {
@@ -170,8 +185,10 @@ exports.removePlatform = async (req, res) => {
             return res.status(404).json({ message: 'Influencer not found' });
         }
 
-        if (req.user.role === 'user' && influencer.createdBy.toString() !== req.user.id) {
-            return res.status(403).json({ message: 'Not authorized to modify this influencer' });
+        // Users can edit only their own or assigned
+        const permissionError = requireEditPermission(influencer, req.user);
+        if (permissionError) {
+            return res.status(permissionError.status).json({ message: permissionError.message });
         }
 
         const hasPlatform = influencer.platforms.some(p => p.platformName === platformName);
@@ -254,9 +271,11 @@ exports.update = async (req, res) => {
             return res.status(404).json({ message: 'Influencer not found' });
         }
 
-        if (req.user.role === 'user' && influencer.createdBy.toString() !== req.user.id) {
+        // Users can edit only their own or assigned
+        const permissionError = requireEditPermission(influencer, req.user);
+        if (permissionError) {
             if (session) await session.abortTransaction();
-            return res.status(403).json({ message: 'Not authorized to update this influencer' });
+            return res.status(permissionError.status).json({ message: permissionError.message });
         }
 
         // Identity update
@@ -302,6 +321,18 @@ exports.update = async (req, res) => {
         const saved = await influencer.save({ session: session || undefined });
 
         if (session) await session.commitTransaction();
+
+        // Notify all admins when a regular user updates an influencer
+        if (req.user.role !== 'admin') {
+            const admins = await User.find({ role: 'admin' }).select('_id');
+            const notifications = admins.map(admin => ({
+                type: 'influencer_updated',
+                recipientId: admin._id,
+                relatedId: saved._id,
+                message: `User "${req.user.username}" updated influencer "${saved.name}".`,
+            }));
+            await Notification.insertMany(notifications);
+        }
 
         const actionLabel = hasPlatformUpdate
             ? (hasIdentityUpdate ? `Profile and ${platformName} updated` : `${platformName} stats updated successfully`)

@@ -1,4 +1,6 @@
 const Influencer = require('../models/influencer');
+const User = require('../models/user');
+const Notification = require('../models/notification');
 const instagramService = require('../services/instagramService');
 const youtubeService = require('../services/youtubeService');
 const facebookService = require('../services/facebookService');
@@ -10,7 +12,7 @@ const normalizeHandle = (handle) => {
     return handle.toLowerCase().replace(/[^a-z0-9_.]/g, '').trim();
 };
 
-const handleImport = async (influencerData, platformName, userId) => {
+const handleImport = async (influencerData, platformName, userId, username) => {
     const normalizedHandle = normalizeHandle(influencerData.handle);
     const searchName = influencerData.name ? new RegExp(`^${influencerData.name}$`, 'i') : null;
 
@@ -48,6 +50,16 @@ const handleImport = async (influencerData, platformName, userId) => {
     });
     
     const saved = await newInfluencer.save();
+
+    // Notify all admins of new influencer creation
+    const admins = await User.find({ role: 'admin' }).select('_id');
+    await Notification.insertMany(admins.map(admin => ({
+        type: 'influencer_created',
+        recipientId: admin._id,
+        relatedId: saved._id,
+        message: `User "${username}" imported a new influencer "${saved.name}".`,
+    })));
+
     return { status: 201, message: "Imported", influencer: saved };
 };
 
@@ -62,7 +74,7 @@ exports.importInstagram = async (req, res) => {
         const rawData = await instagramService.fetchProfile(igUrl);
         const influencerData = instagramService.transformData(rawData);
 
-        const result = await handleImport(influencerData, 'Instagram', req.user.id);
+        const result = await handleImport(influencerData, 'Instagram', req.user.id, req.user.username);
         res.status(result.status).json({ message: result.message, influencer: result.influencer });
 
     } catch (err) {
@@ -80,7 +92,7 @@ exports.importYouTube = async (req, res) => {
 
     try {
         const influencerData = await youtubeService.fetchProfile(ytInput);
-        const result = await handleImport(influencerData, 'YouTube', req.user.id);
+        const result = await handleImport(influencerData, 'YouTube', req.user.id, req.user.username);
         res.status(result.status).json({ message: result.message, influencer: result.influencer });
 
     } catch (err) {
@@ -100,7 +112,7 @@ exports.importFacebook = async (req, res) => {
         const rawData = await facebookService.fetchProfile(fbUrl);
         const influencerData = facebookService.transformData(rawData);
 
-        const result = await handleImport(influencerData, 'Facebook', req.user.id);
+        const result = await handleImport(influencerData, 'Facebook', req.user.id, req.user.username);
         res.status(result.status).json({ message: result.message, influencer: result.influencer });
 
     } catch (err) {
@@ -121,7 +133,7 @@ exports.importTikTok = async (req, res) => {
         const rawData = await tiktokService.fetchProfile(url);
         const influencerData = tiktokService.transformData(rawData);
 
-        const result = await handleImport(influencerData, 'TikTok', req.user.id);
+        const result = await handleImport(influencerData, 'TikTok', req.user.id, req.user.username);
         res.status(result.status).json({ message: result.message, influencer: result.influencer });
 
     } catch (err) {

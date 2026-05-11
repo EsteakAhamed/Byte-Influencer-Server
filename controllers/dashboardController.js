@@ -2,13 +2,13 @@ const Influencer = require('../models/influencer');
 const Client = require('../models/client');
 const User = require('../models/user');
 
-// Helper function to format month names
+// Format month names for trend labels
 const getMonthName = (date) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[date.getMonth()];
 };
 
-// Get last 6 months for trends
+// Generate last 6 months for trend calculations
 const getLast6Months = () => {
     const months = [];
     const today = new Date();
@@ -25,21 +25,18 @@ const getLast6Months = () => {
     return months;
 };
 
-// @desc    Get dashboard data for logged-in user
-// @route   GET /api/dashboard/user
-// @access  Private
+// Get dashboard data for logged-in user (shows all platform data)
 exports.getDashboardForUser = async (req, res) => {
     try {
-        const userId = req.user.id;
         console.log('User ID from token:', req.user.id);
-        console.log('Finding influencers for user:', req.user.id);
+        console.log('Fetching all influencers and clients for dashboard');
 
-        // Fetch all influencers for this user
-        const influencers = await Influencer.find({ createdBy: userId }).sort({ createdAt: -1 });
+        // All users can see all influencers (new access model)
+        const influencers = await Influencer.find({}).sort({ createdAt: -1 });
         console.log('Found influencers:', influencers.length);
 
-        // Fetch all clients for this user
-        const clients = await Client.find({ createdBy: userId }).sort({ createdAt: -1 });
+        // All users can see all clients (new access model)
+        const clients = await Client.find({}).sort({ createdAt: -1 });
         console.log('Found clients:', clients.length);
 
         // Calculate stats
@@ -180,9 +177,7 @@ exports.getDashboardForUser = async (req, res) => {
     }
 };
 
-// @desc    Get dashboard data for admin (all users data)
-// @route   GET /api/dashboard/admin
-// @access  Private/Admin
+// Get dashboard data for admin (all platform data)
 exports.getDashboardForAdmin = async (req, res) => {
     try {
         // Fetch all users

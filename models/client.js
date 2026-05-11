@@ -25,6 +25,12 @@ const clientSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
+    },
+    // Admin-assigned user — null means unassigned
+    assignedTo: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
     }
 }, { timestamps: true });
 

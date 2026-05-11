@@ -7,6 +7,7 @@ const clientRoutes = require('./routes/clientRoutes.js');
 const authRoutes = require('./routes/authRoutes.js');
 const adminRoutes = require('./routes/adminRoutes.js');
 const dashboardRoutes = require('./routes/dashboardRoutes.js');
+const notificationRoutes = require('./routes/notificationRoutes.js');
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/', (req, res) => {
     res.send('API running');
